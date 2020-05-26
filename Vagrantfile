@@ -123,7 +123,6 @@ Vagrant.configure('2') do |config|
   # We have tried using NFS but it's super slow compared to synced_folder
   config.vm.synced_folder DIR, '/data/wordpress/', owner: 'vagrant', group: 'vagrant', mount_options: ['dmode=775', 'fmode=775']
 
-
   # For Self-signed ssl-certificate
   ssl_cert_path = File.join(DIR,'.vagrant','ssl')
   unless File.exists? File.join(ssl_cert_path,'development.crt')
@@ -143,6 +142,7 @@ Vagrant.configure('2') do |config|
   end
 
   config.vm.provider 'virtualbox' do |vb|
+
     # Give VM access to all cpu cores on the host
     cpus = case RbConfig::CONFIG['host_os']
       when /darwin/ then `sysctl -n hw.physicalcpu`.to_i
@@ -158,6 +158,10 @@ Vagrant.configure('2') do |config|
     vb.customize ['modifyvm', :id, '--natdnshostresolver1', 'on']
     vb.customize ['modifyvm', :id, '--natdnsproxy1', 'on']
   end
+
+  virtualbox_version_check
+  puts "end"
+  exit 1
 
 end
 
@@ -478,6 +482,28 @@ end
 ##
 def vagrant_running?
   system("vagrant status --machine-readable | grep state,running --quiet")
+end
+
+def virtualbox_version_check
+  min_ver = "4.0"
+  max_ver = "5.2"
+
+  vboxmanage = Vagrant::Util::Which.which("VBoxManage") || Vagrant::Util::Which.which("VBoxManage.exe")
+  if vboxmanage != nil
+    s = Vagrant::Util::Subprocess.execute(vboxmanage, '--version')
+    ver = s.stdout.strip![0..2]
+    puts "Found VirtualBox version #{ver}"
+  else
+    STDERR.puts "VirtualBox not installed, aborting.."
+    exit 1
+  end
+
+  if ver <= min_ver
+    STDERR.puts "VirtualBox version #{ver} is too low. Requires at least #{min_ver}."
+  elsif ver > max_ver
+    STDERR.puts "VirtualBox version #{ver} is too high. Please downgrade to #{max_ver}."
+  end
+  exit 1
 end
 
 ##
